@@ -5,6 +5,7 @@ Violão e guitarra no navegador para os alunos praticarem: casas que tocam, acor
 - `index.html`: escolha do instrumento
 - `violao.html`: violão de náilon
 - `guitarra.html`: guitarra elétrica
+- `treino.html`: treino com microfone (afinador e conferência dos exercícios nota por nota, com histórico no aparelho)
 
 ## Créditos dos sons
 

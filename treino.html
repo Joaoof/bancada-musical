@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Treino com microfone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: uma coluna para o celular; o instrumento de medida (ponteiro ou fila de notas) sempre no topo do painel */
+:root{
+  --bg:#ECEEE8; --surface:#F8F9F5; --ink:#1F1C18; --muted:#635E55; --line:#D3D4CC;
+  --accent:#9C5A12; --accent-soft:#F1E2CC; --accent-ink:#FFFFFF;
+  --ok:#2E7D4F; --ok-soft:#DCEFE3; --warn:#A86A00; --warn-soft:#F6E7C6; --bad:#B23A2B; --bad-soft:#F5DAD5; --miss:#8B877F;
+  --body:"Poppins",ui-sans-serif,system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,"DejaVu Sans Mono",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;
+  --bg:#14110E;--surface:#1D1915;--ink:#EEE7DB;--muted:#A69E91;--line:#342E27;--accent:#E3A14F;--accent-soft:#3A2A17;--accent-ink:#1A1208;
+  --ok:#6CC892;--ok-soft:#173326;--warn:#E8B44E;--warn-soft:#3A2C12;--bad:#F08573;--bad-soft:#3D1C17;--miss:#7E786F}}
+:root[data-theme="dark"]{color-scheme:dark;
+  --bg:#14110E;--surface:#1D1915;--ink:#EEE7DB;--muted:#A69E91;--line:#342E27;--accent:#E3A14F;--accent-soft:#3A2A17;--accent-ink:#1A1208;
+  --ok:#6CC892;--ok-soft:#173326;--warn:#E8B44E;--warn-soft:#3A2C12;--bad:#F08573;--bad-soft:#3D1C17;--miss:#7E786F}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{margin:0;font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:16px}
+a.voltar{font-size:13px;color:var(--muted);text-decoration:none}
+h1{font-size:clamp(24px,5vw,36px);line-height:1.1;margin:2px 0 0;letter-spacing:-.02em;text-wrap:balance}
+.lede{margin:6px 0 0;color:var(--muted);max-width:56ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.mic{padding:18px;display:grid;gap:10px}
+.mic p{margin:0;color:var(--muted);font-size:14px}
+.btn{font:500 15px/1 var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:13px 16px;cursor:pointer;min-height:46px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:600}
+.btn:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tabs{display:flex;gap:4px;padding:6px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{flex:1 0 auto;font:500 14px/1 var(--body);color:var(--muted);background:none;border:0;border-radius:10px;padding:12px 12px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent-soft);color:var(--ink);font-weight:600}
+.panel{padding:16px;display:grid;gap:16px}
+.panel[hidden]{display:none}
+.level{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.level i{display:block;height:100%;width:0;background:var(--ok);transition:width .08s linear}
+.ouvindo{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);font-size:13px;color:var(--muted)}
+.ouvindo b{color:var(--ink);font-size:15px}
+/* afinador */
+.gauge{display:grid;justify-items:center;gap:4px}
+.gauge svg{width:100%;max-width:420px;height:auto}
+.nota{font-size:64px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.sub{font-family:var(--mono);font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dica{font-size:17px;font-weight:600;min-height:1.6em;text-align:center}
+.dica.ok{color:var(--ok)}
+.cordas{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.corda{display:grid;justify-items:center;gap:0;padding:8px 0;border:1px solid var(--line);border-radius:12px;background:var(--bg);cursor:pointer;font:inherit;color:inherit;min-height:56px}
+.corda b{font-size:16px}
+.corda small{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.corda.alvo{border-color:var(--accent);background:var(--accent-soft)}
+.corda.afinada{border-color:var(--ok);background:var(--ok-soft)}
+.corda.afinada small::after{content:" ✓";color:var(--ok)}
+.nota-fina{font-size:13px;color:var(--muted);margin:0}
+/* confere */
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+.chips .btn{flex:none}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{font:500 14px/1 var(--body);border:0;background:var(--bg);color:var(--muted);padding:12px 14px;cursor:pointer;min-height:44px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.opts{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center}
+.bpm{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px}
+.bpm input{accent-color:var(--accent);width:150px}
+.bpm output{min-width:62px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+label.chk{display:flex;gap:8px;align-items:center;font-size:14px}
+label.chk input{accent-color:var(--accent);width:18px;height:18px}
+.fila{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 8px;scroll-behavior:smooth}
+.t{flex:none;width:54px;display:grid;justify-items:center;padding:6px 0;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.t small{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.t b{font-size:22px;line-height:1.15}
+.t.now{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent)}
+.t.ok{border-color:var(--ok);background:var(--ok-soft)}
+.t.cedo,.t.tarde{border-color:var(--warn);background:var(--warn-soft)}
+.t.erro{border-color:var(--bad);background:var(--bad-soft)}
+.t.falta{border-style:dashed;opacity:.6}
+.t .m{font-size:10px;font-weight:600;min-height:1.2em}
+.alvo-box{display:grid;gap:4px;padding:14px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.alvo-box .grande{font-size:22px;font-weight:600;line-height:1.3}
+.alvo-box .fb{font-size:15px;min-height:1.5em}
+.fb.ok{color:var(--ok)} .fb.bad{color:var(--bad)} .fb.warn{color:var(--warn)}
+.contagem{font-size:56px;font-weight:700;text-align:center;line-height:1}
+.resultado{display:grid;gap:12px;padding:16px;border-radius:14px;border:1px solid var(--accent);background:var(--accent-soft)}
+.resultado h3{margin:0;font-size:18px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.stat{display:grid;gap:0}
+.stat b{font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat small{font-size:12px;color:var(--muted)}
+.recorde{font-weight:600;color:var(--ok)}
+.acao{position:sticky;bottom:0;z-index:5;display:flex;gap:10px;background:var(--surface);margin:0 -16px -16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);border-radius:0 0 16px 16px}
+.acao .btn.primary{flex:1}
+/* progresso */
+.serie{font-size:15px}
+.serie b{font-size:20px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);font-weight:500}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tbl{overflow-x:auto}
+.vazio{color:var(--muted);font-size:14px}
+.confirma{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+footer{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){.level i{transition:none}.fila{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="voltar" href="./">← Bancada de estudo</a>
+    <h1>Treino com microfone</h1>
+    <p class="lede">Afine o instrumento e toque os exercícios: a página escuta e diz nota por nota se você acertou e se estava no tempo. Serve para violão e guitarra.</p>
+  </header>
+
+  <section class="card mic" id="micCard">
+    <button class="btn primary" id="micBtn">🎙 Ligar o microfone</button>
+    <p id="micMsg">O celular vai pedir permissão. O som é analisado no próprio aparelho e nada é gravado ou enviado. Em lugar silencioso funciona melhor.</p>
+  </section>
+
+  <section class="card">
+    <div class="tabs" role="tablist" aria-label="Modos">
+      <button role="tab" id="t-afinador" aria-controls="p-afinador" aria-selected="true">Afinador</button>
+      <button role="tab" id="t-confere" aria-controls="p-confere" aria-selected="false">Confere exercício</button>
+      <button role="tab" id="t-progresso" aria-controls="p-progresso" aria-selected="false">Meu progresso</button>
+    </div>
+
+    <div class="panel" id="p-afinador" role="tabpanel" aria-labelledby="t-afinador">
+      <div class="gauge">
+        <svg viewBox="0 0 300 160" aria-hidden="true">
+          <path d="M30,150 A120,120 0 0 1 270,150" fill="none" stroke="var(--line)" stroke-width="14" stroke-linecap="round"/>
+          <path d="M139.5,30.5 A120,120 0 0 1 160.5,30.5" fill="none" stroke="var(--ok)" stroke-width="14"/>
+          <g id="ticks"></g>
+          <line id="needle" x1="150" y1="150" x2="150" y2="44" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" style="transform-origin:150px 150px;transition:transform .12s ease-out"/>
+          <circle cx="150" cy="150" r="9" fill="var(--ink)"/>
+          <text x="34" y="138" font-size="11" fill="var(--muted)" font-family="JetBrains Mono, monospace">grave</text>
+          <text x="236" y="138" font-size="11" fill="var(--muted)" font-family="JetBrains Mono, monospace">agudo</text>
+        </svg>
+        <div class="nota" id="tNota">–</div>
+        <div class="sub" id="tSub">Toque uma corda solta</div>
+      </div>
+      <div class="dica" id="tDica" aria-live="polite"></div>
+      <div class="cordas" id="cordas"></div>
+      <p class="nota-fina">Toque na corda acima para ouvir a nota certa e travar o afinador nela. Toque de novo para voltar ao automático. Afinação padrão: Mi Lá Ré Sol Si Mi.</p>
+      <div>
+        <div class="ouvindo"><span>Volume do microfone</span><span id="tHz"></span></div>
+        <div class="level"><i id="lvlA"></i></div>
+      </div>
+    </div>
+
+    <div class="panel" id="p-confere" role="tabpanel" aria-labelledby="t-confere" hidden>
+      <div class="chips" id="exChips"></div>
+      <div class="opts">
+        <div class="seg" role="group" aria-label="Modo">
+          <button id="mLivre" aria-pressed="true">No meu tempo</button>
+          <button id="mMetro" aria-pressed="false">Com metrônomo</button>
+        </div>
+        <div class="bpm" id="bpmBox" hidden><label for="bpm">Andamento</label><input id="bpm" type="range" min="40" max="140" step="2" value="60"><output id="bpmOut">60 bpm</output></div>
+        <label class="chk" id="subBox" hidden><input type="checkbox" id="colcheia"> 2 notas por tempo</label>
+      </div>
+      <div class="fila" id="fila" aria-label="Notas do exercício"></div>
+      <div class="alvo-box">
+        <div class="contagem" id="contagem" hidden></div>
+        <div class="grande" id="alvo">Escolha um exercício e aperte Começar.</div>
+        <div class="fb" id="fb" aria-live="polite"></div>
+      </div>
+      <div>
+        <div class="ouvindo"><span>Ouvindo: <b id="cOuv">–</b></span><span id="cInfo"></span></div>
+        <div class="level"><i id="lvlC"></i></div>
+      </div>
+      <div class="resultado" id="res" hidden></div>
+      <p class="nota-fina" id="dicaFone">No modo com metrônomo, use fone de ouvido: assim o microfone não confunde o clique com a sua nota.</p>
+      <div class="acao">
+        <button class="btn primary" id="go">▶ Começar</button>
+      </div>
+    </div>
+
+    <div class="panel" id="p-progresso" role="tabpanel" aria-labelledby="t-progresso" hidden>
+      <p class="serie" id="serie"></p>
+      <h3 style="margin:0;font-size:16px">Recordes</h3>
+      <div class="tbl"><table><thead><tr><th>Exercício</th><th>Melhor acerto</th><th>Maior andamento no tempo</th></tr></thead><tbody id="recBody"></tbody></table></div>
+      <h3 style="margin:0;font-size:16px">Últimos treinos</h3>
+      <div class="tbl"><table><thead><tr><th>Quando</th><th>Exercício</th><th>Modo</th><th>Acerto</th></tr></thead><tbody id="histBody"></tbody></table></div>
+      <div class="confirma" id="limparBox"><button class="btn" id="limpar">Apagar meu histórico</button></div>
+      <p class="nota-fina">O histórico fica guardado só neste aparelho e neste navegador.</p>
+    </div>
+  </section>
+
+  <footer>Detecção de nota pelo algoritmo YIN (de Cheveigné e Kawahara), rodando no próprio aparelho. O microfone confere a altura da nota: a mesma nota tocada em outra corda também conta como certa.</footer>
+</div>
+
+<script>
+(()=>{
+/* ---------- notas e cordas ---------- */
+const PT=['Dó','Dó♯','Ré','Ré♯','Mi','Fá','Fá♯','Sol','Sol♯','Lá','Lá♯','Si'];
+const EN=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const OPEN=[64,59,55,50,45,40];               // índice 0 = 1ª corda (Mi agudo)
+const NOME=['Mi','Si','Sol','Ré','Lá','Mi'];
+const nm=m=>PT[((m%12)+12)%12], nmo=m=>EN[((m%12)+12)%12]+(Math.floor(m/12)-1);
+const hz=m=>440*Math.pow(2,(m-69)/12);
+const $=id=>document.getElementById(id);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- exercícios (iguais aos da bancada) ---------- */
+const N=(s,f,d)=>({s,f,d,m:OPEN[s]+f});
+function aranha(){const a=[];for(let s=5;s>=0;s--)for(let k=0;k<4;k++)a.push(N(s,5+k,k+1));for(let s=0;s<=5;s++)for(let k=3;k>=0;k--)a.push(N(s,5+k,k+1));return a}
+function penta(){const box=[[5,[5,8]],[4,[5,7]],[3,[5,7]],[2,[5,7]],[1,[5,8]],[0,[5,8]]];const fing={5:1,7:3,8:4};const up=[];box.forEach(([s,fs])=>fs.forEach(f=>up.push(N(s,f,fing[f]))));return up.concat(up.slice(0,-1).reverse())}
+function doMaior(){const up=[N(4,3,3),N(3,0,0),N(3,2,2),N(3,3,3),N(2,0,0),N(2,2,2),N(1,0,0),N(1,1,1)];return up.concat(up.slice(0,-1).reverse())}
+function soltas(){const up=[5,4,3,2,1,0].map(s=>N(s,0,0));return up.concat(up.slice(0,-1).reverse())}
+function primeira(){return [N(0,0,0),N(0,1,1),N(0,3,3),N(1,0,0),N(1,1,1),N(1,3,3),N(2,0,0),N(2,2,2),N(1,3,3),N(1,1,1),N(1,0,0),N(0,3,3),N(0,1,1),N(0,0,0)]}
+const EX=[
+  {id:'soltas',nome:'Cordas soltas',fn:soltas},
+  {id:'primeira',nome:'Notas da 1ª posição',fn:primeira},
+  {id:'do',nome:'Escala de Dó maior',fn:doMaior},
+  {id:'aranha',nome:'Aranha 1-2-3-4',fn:aranha},
+  {id:'penta',nome:'Pentatônica de Lá menor',fn:penta},
+];
+
+/* ---------- áudio: microfone + YIN ---------- */
+let ctx=null,an=null,buf=null,yinD=null,rodando=false,ultimo={m:null,f:0,rms:0,t:0};
+async function ligar(){
+  if(ctx)return true;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    ctx=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();
+    const src=ctx.createMediaStreamSource(stream);an=ctx.createAnalyser();an.fftSize=2048;src.connect(an);
+    buf=new Float32Array(an.fftSize);yinD=new Float32Array(an.fftSize);
+    $('micBtn').textContent='🎙 Microfone ligado';$('micBtn').disabled=true;
+    $('micMsg').textContent='Pronto. Toque uma corda e veja o volume subir. Se não mexer, confira se o navegador liberou o microfone.';
+    rodando=true;requestAnimationFrame(quadro);return true
+  }catch(e){
+    $('micMsg').textContent=location.protocol==='file:'?'O navegador bloqueou o microfone neste arquivo. Abra pelo link do site.':'Não consegui usar o microfone. Libere o acesso nas configurações do navegador e tente de novo.';
+    return false}
+}
+$('micBtn').addEventListener('click',ligar);
+function yin(x,sr){
+  const W=1024,tmin=Math.max(2,Math.floor(sr/1300)),tmax=Math.min(Math.floor(sr/70),x.length-W-1);const d=yinD;
+  for(let t=1;t<=tmax;t++){let s=0;for(let j=0;j<W;j++){const v=x[j]-x[j+t];s+=v*v}d[t]=s}
+  let run=0;d[0]=1;for(let t=1;t<=tmax;t++){run+=d[t];d[t]=run?d[t]*t/run:1}
+  let tau=-1;for(let t=tmin;t<=tmax;t++){if(d[t]<.13){while(t+1<=tmax&&d[t+1]<d[t])t++;tau=t;break}}
+  if(tau<0)return null;
+  const a=d[tau-1],b=d[tau],c=tau+1<=tmax?d[tau+1]:b;const den=a+c-2*b;const sh=den?(a-c)/(2*den):0;
+  return {f:sr/(tau+sh),q:1-b}
+}
+const hist=[];let slow=0;
+function quadro(){
+  if(!rodando)return;
+  an.getFloatTimeDomainData(buf);
+  let e=0;for(let i=0;i<buf.length;i++)e+=buf[i]*buf[i];const rms=Math.sqrt(e/buf.length);
+  const lv=Math.min(100,rms*900);$('lvlA').style.width=lv+'%';$('lvlC').style.width=lv+'%';
+  const now=ctx.currentTime;
+  let p=null;if(rms>.006){const r=yin(buf,ctx.sampleRate);if(r&&r.f>70&&r.f<1300)p=r}
+  if(p){hist.push(p.f);if(hist.length>3)hist.shift()}else hist.length=0;
+  const f=hist.length?hist.slice().sort((a,b)=>a-b)[Math.floor(hist.length/2)]:0;
+  const mf=f?69+12*Math.log2(f/440):null;
+  // ataque (para o modo com metrônomo)
+  const onset=rms>.012&&rms>slow*1.8&&now-ultimo.t>.09;slow=slow*.9+rms*.1;
+  if(onset)ultimo.t=now;
+  afinador(mf,f,rms);confereFrame(mf,rms,now,onset);
+  requestAnimationFrame(quadro)
+}
+
+/* ---------- afinador ---------- */
+const ticks=$('ticks');
+for(let c=-50;c<=50;c+=10){const a=(c*1.6-90)*Math.PI/180;const r1=c%50===0?100:106,r2=114;
+  const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',150+r1*Math.cos(a));l.setAttribute('y1',150+r1*Math.sin(a));l.setAttribute('x2',150+r2*Math.cos(a));l.setAttribute('y2',150+r2*Math.sin(a));
+  l.setAttribute('stroke','var(--muted)');l.setAttribute('stroke-width',c===0?3:1.5);ticks.appendChild(l)}
+let trava=null;const afinadas=new Set();let estavel=0;
+const cordasEl=$('cordas');
+[5,4,3,2,1,0].forEach(s=>{const b=document.createElement('button');b.className='corda';b.dataset.s=s;b.innerHTML=`<b>${NOME[s]}</b><small>${s+1}ª · ${nmo(OPEN[s])}</small>`;
+  b.addEventListener('click',async()=>{await ligar();trava=trava===s?null:s;ref(OPEN[s]);marcarCordas(trava)});cordasEl.appendChild(b)});
+function marcarCordas(alvo){[...cordasEl.children].forEach(b=>{const s=+b.dataset.s;b.classList.toggle('alvo',s===alvo);b.classList.toggle('afinada',afinadas.has(s))})}
+function afinador(mf,f,rms){
+  if($('p-afinador').hidden)return;
+  if(mf===null){if(rms<.004){$('tDica').textContent='';}return}
+  let s=trava;if(s===null){let best=99;OPEN.forEach((m,i)=>{const d=Math.abs(mf-m);if(d<best){best=d;s=i}});if(best>2.5)s=null}
+  let cents,alvoM;if(s!==null){alvoM=OPEN[s];cents=(mf-alvoM)*100}else{alvoM=Math.round(mf);cents=(mf-alvoM)*100}
+  const c=Math.max(-50,Math.min(50,cents));$('needle').style.transform=`rotate(${c*1.6}deg)`;
+  $('tNota').textContent=nm(Math.round(mf));
+  $('tSub').textContent=`${f.toFixed(1).replace('.',',')} Hz · ${cents>0?'+':''}${Math.round(cents)} cents`+(s!==null?` · alvo: ${s+1}ª corda (${NOME[s]})`:'');
+  $('tHz').textContent=nmo(Math.round(mf));
+  const d=$('tDica');
+  if(s===null){d.className='dica';d.textContent='Essa nota não é de corda solta. Toque uma corda sem apertar casa.';marcarCordas(null);return}
+  if(Math.abs(cents)<=5){estavel++;d.className='dica ok';d.textContent='Afinada ✓';if(estavel>12){afinadas.add(s)}}
+  else{estavel=0;d.className='dica';d.textContent=Math.abs(cents)>150?(cents<0?'Bem grave: aperte a corda (aumente a tensão).':'Bem aguda: solte a corda um pouco.'):(cents<0?'Um pouco grave: aperte a corda devagar.':'Um pouco aguda: solte a corda devagar.')}
+  marcarCordas(s)
+}
+/* nota de referência: corda sintetizada (Karplus-Strong) */
+function ref(m){if(!ctx)return;const sr=ctx.sampleRate,f=hz(m),len=Math.floor(sr*2.2),out=new Float32Array(len),P=sr/f,a=.6,D=P-(1-a)/a,g=Math.pow(10,-3/(3*f));
+  const N=Math.ceil(P);for(let i=0;i<N;i++)out[i]=Math.random()*2-1;let st=0;
+  for(let n=N;n<len;n++){const r=n-D,i=Math.floor(r),fr=r-i;const v=out[i]*(1-fr)+out[i+1]*fr;st+=a*(v-st);out[n]=g*st}
+  for(let i=0;i<4000;i++)out[len-1-i]*=i/4000;
+  const b=ctx.createBuffer(1,len,sr);b.copyToChannel(out,0);const src=ctx.createBufferSource();src.buffer=b;const gn=ctx.createGain();gn.gain.value=.35;src.connect(gn);gn.connect(ctx.destination);src.start()}
+
+/* ---------- confere exercício ---------- */
+let ex=EX[0],notas=[],modo='livre',sess=null;
+const chips=$('exChips');
+EX.forEach(x=>{const b=document.createElement('button');b.className='btn';b.textContent=x.nome;b.setAttribute('aria-pressed',x===ex);
+  b.addEventListener('click',()=>{if(sess)parar(false);ex=x;[...chips.children].forEach(y=>y.setAttribute('aria-pressed',y===b));montarFila();$('res').hidden=true});chips.appendChild(b)});
+function montarFila(){notas=ex.fn();$('fila').innerHTML=notas.map((n,i)=>`<div class="t" data-i="${i}"><small>${n.s+1}ª</small><b>${n.f}</b><small>${n.d?'dedo '+n.d:'solta'}</small><span class="m"></span></div>`).join('');
+  $('alvo').textContent=`${ex.nome}: ${notas.length} notas. Aperte Começar.`;$('fb').textContent=''}
+montarFila();
+function tile(i){return $('fila').children[i]}
+function marcar(i,cls,txt){const t=tile(i);if(!t)return;t.classList.remove('now','ok','cedo','tarde','erro','falta');if(cls)t.classList.add(cls);t.querySelector('.m').textContent=txt||''}
+function foco(i){const t=tile(i);if(!t)return;t.classList.add('now');const f=$('fila');f.scrollLeft=t.offsetLeft-f.clientWidth/2+t.clientWidth/2}
+function descreve(n){return `${n.s+1}ª corda, ${n.f===0?'solta':'casa '+n.f}${n.d?' · dedo '+n.d:''} · ${nm(n.m)}`}
+$('mLivre').addEventListener('click',()=>setModo('livre'));$('mMetro').addEventListener('click',()=>setModo('metro'));
+function setModo(m){if(sess)parar(false);modo=m;$('mLivre').setAttribute('aria-pressed',m==='livre');$('mMetro').setAttribute('aria-pressed',m==='metro');$('bpmBox').hidden=m!=='metro';$('subBox').hidden=m!=='metro';$('res').hidden=true}
+const bpm=$('bpm');bpm.addEventListener('input',()=>$('bpmOut').textContent=bpm.value+' bpm');
+const bate=(m,alvo)=>m!==null&&(Math.round(m)===alvo||(alvo<52&&Math.round(m)===alvo+12)||Math.abs(m-alvo)<.45);
+$('go').addEventListener('click',async()=>{if(sess){parar(true);return}if(!await ligar())return;comecar()});
+function comecar(){
+  $('res').hidden=true;[...$('fila').children].forEach((t,i)=>marcar(i,null,''));
+  sess={modo,i:0,t0:ctx.currentTime,erros:0,errosNota:new Set(),res:[],est:0,errEst:0,ultimoErro:-1,pend:null,clicks:[]};
+  $('go').textContent='■ Parar';
+  if(modo==='livre'){foco(0);$('alvo').textContent='Agora: '+descreve(notas[0]);$('fb').textContent='';$('fb').className='fb'}
+  else{const spb=60/(+bpm.value);const step=$('colcheia').checked?spb/2:spb;sess.step=step;sess.spb=spb;
+    const t=ctx.currentTime+.3;sess.inicio=t+4*spb;
+    for(let k=0;k<4;k++){clique(t+k*spb,k===0);sess.clicks.push(t+k*spb)}
+    const total=notas.length*step;const nb=Math.ceil(total/spb)+1;for(let k=0;k<nb;k++){const tt=sess.inicio+k*spb;clique(tt,k%4===0);sess.clicks.push(tt)}
+    $('contagem').hidden=false;$('alvo').textContent='Prepare-se: a primeira nota entra depois de 4 cliques.';$('fb').textContent=''}
+}
+function clique(t,forte){const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=forte?1760:1320;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(forte?.35:.22,t+.002);g.gain.exponentialRampToValueAtTime(.0001,t+.045);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.06)}
+function confereFrame(m,rms,now,onset){
+  if(!sess)return;
+  $('cOuv').textContent=m!==null?`${nm(Math.round(m))} · ${nmo(Math.round(m))}`:'–';
+  if(sess.modo==='livre')livreFrame(m);else metroFrame(m,now,onset)
+}
+function livreFrame(m){
+  const i=sess.i;if(i>=notas.length)return;const alvo=notas[i].m;const ant=i>0?notas[i-1].m:null;
+  if(bate(m,alvo)){sess.est++;sess.errEst=0;if(sess.est>=3){const primeira=!sess.errosNota.has(i);marcar(i,primeira?'ok':'cedo',primeira?'✓':'2ª');
+      sess.res.push(primeira);sess.i++;sess.est=0;const fb=$('fb');fb.className='fb ok';fb.textContent=primeira?'Certo!':'Certo na segunda.';
+      if(sess.i>=notas.length){fim();return}foco(sess.i);$('alvo').textContent='Agora: '+descreve(notas[sess.i])}}
+  else if(m!==null&&!(ant!==null&&bate(m,ant))){sess.errEst++;sess.est=0;
+    if(sess.errEst>=8&&sess.ultimoErro!==i+':'+Math.round(m)){sess.ultimoErro=i+':'+Math.round(m);sess.errosNota.add(i);sess.erros++;
+      const fb=$('fb');fb.className='fb bad';fb.textContent=`Você tocou ${nm(Math.round(m))}, era ${nm(alvo)}. Tente de novo.`;tile(i).classList.add('erro')}}
+  else{sess.est=0;sess.errEst=0}
+}
+function metroFrame(m,now,onset){
+  const s=sess;const k0=Math.floor((now-s.inicio+s.step/2)/s.step);
+  // contagem
+  if(now<s.inicio){const falta=Math.ceil((s.inicio-now)/s.spb);$('contagem').textContent=falta;return}
+  $('contagem').hidden=true;
+  // nota da vez
+  if(k0>=0&&k0<notas.length&&k0!==s.vez){if(s.vez!==undefined&&tile(s.vez))tile(s.vez).classList.remove('now');s.vez=k0;foco(k0);$('alvo').textContent='Agora: '+descreve(notas[k0])}
+  // notas que passaram sem ataque
+  for(let k=0;k<notas.length;k++){if(s.res[k]!==undefined)continue;if(now>s.inicio+k*s.step+s.step*.55+.08&&!(s.pend&&s.pend.k===k)){s.res[k]='falta';marcar(k,'falta','—')}}
+  // ataque novo: perto de clique é ignorado
+  const lat=.03;
+  if(onset){const tOn=now-lat;const k=Math.round((tOn-s.inicio)/s.step);if(k>=0&&k<notas.length&&s.res[k]===undefined&&!s.pend){s.pend={k,dev:tOn-(s.inicio+k*s.step),ate:now+.12,ms:[]}}}
+  if(s.pend){if(m!==null)s.pend.ms.push(m);
+    if(now>=s.pend.ate||s.pend.ms.length>=4){const p=s.pend;s.pend=null;if(!p.ms.length)return; /* clique do metrônomo ou ruído: sem nota, não conta */ const alvo=notas[p.k].m;
+      const ok=p.ms.some(x=>bate(x,alvo));const dms=Math.round(p.dev*1000);const tol=Math.max(70,s.step*1000*.18);
+      let cls,txt,fb;if(!ok){cls='erro';txt='nota';const ouvi=p.ms.length?nm(Math.round(p.ms[p.ms.length-1])):'?';fb=[`bad`,`Nota errada: saiu ${ouvi}, era ${nm(alvo)}.`]}
+      else if(Math.abs(dms)<=tol){cls='ok';txt='✓';fb=['ok','No tempo!']}
+      else if(dms<0){cls='cedo';txt='cedo';fb=['warn',`Adiantou ${-dms} ms.`]}else{cls='tarde';txt='tarde';fb=['warn',`Atrasou ${dms} ms.`]}
+      s.res[p.k]=cls;marcar(p.k,cls,txt);const f=$('fb');f.className='fb '+fb[0];f.textContent=fb[1]}}
+  if(now>s.inicio+notas.length*s.step+.6&&!s.pend)fim()
+}
+function parar(mostrar){if(!sess)return;const s=sess;sess=null;$('go').textContent='▶ Começar';$('contagem').hidden=true;
+  if(mostrar&&s.res.filter(x=>x!==undefined).length>0)fim(s)}
+function fim(sv){const s=sv||sess;sess=null;$('go').textContent='▶ Começar';$('contagem').hidden=true;
+  const dur=ctx.currentTime-s.t0;let acerto,html,bpmOk=null;
+  if(s.modo==='livre'){const n=s.res.length,ok=s.res.filter(Boolean).length;acerto=n?Math.round(ok/n*100):0;const npm=n?Math.round(n/(dur/60)):0;
+    html=`<div class="stats"><div class="stat"><b>${acerto}%</b><small>certas de primeira</small></div><div class="stat"><b>${s.erros}</b><small>notas erradas</small></div><div class="stat"><b>${npm}</b><small>notas por minuto</small></div><div class="stat"><b>${Math.round(dur)} s</b><small>tempo total</small></div></div>`}
+  else{const r=s.res;const c=x=>r.filter(y=>y===x).length;const n=notas.length;acerto=Math.round(c('ok')/n*100);
+    if(acerto>=80)bpmOk=+bpm.value;
+    html=`<div class="stats"><div class="stat"><b>${acerto}%</b><small>no tempo e certas</small></div><div class="stat"><b>${c('cedo')}</b><small>adiantadas</small></div><div class="stat"><b>${c('tarde')}</b><small>atrasadas</small></div><div class="stat"><b>${c('erro')}</b><small>notas erradas</small></div><div class="stat"><b>${c('falta')}</b><small>não tocadas</small></div></div>`}
+  const rec=salvar({ex:ex.id,modo:s.modo,acerto,bpm:s.modo==='metro'?+bpm.value:null,bpmOk});
+  let prox='';if(s.modo==='metro'){prox=acerto>=80?`Mandou bem. Tente com ${+bpm.value+6} bpm.`:acerto>=50?'Repita no mesmo andamento até passar de 80%.':`Baixe para ${Math.max(40,+bpm.value-10)} bpm e repita.`}
+  else{prox=acerto>=90?'Ótimo. Agora tente com metrônomo.':'Repita no seu tempo até acertar 90% de primeira.'}
+  $('res').innerHTML=`<h3>${ex.nome} · ${s.modo==='livre'?'no meu tempo':bpm.value+' bpm'}</h3>${html}${rec?'<p class="recorde">Novo recorde neste exercício!</p>':''}<p style="margin:0">${prox}</p>`;
+  $('res').hidden=false;$('alvo').textContent='Terminou. Veja o resultado abaixo.';
+  if(s.modo==='metro'&&acerto>=80){bpm.value=Math.min(140,+bpm.value+6);$('bpmOut').textContent=bpm.value+' bpm'}
+  desenharProgresso()}
+
+/* ---------- progresso (só neste aparelho) ---------- */
+const KEY='bancada.treino.v1';
+function ler(){try{return JSON.parse(localStorage.getItem(KEY))||{h:[]}}catch(e){return {h:[]}}}
+function gravar(d){try{localStorage.setItem(KEY,JSON.stringify(d))}catch(e){}}
+function salvar(r){const d=ler();const ant=d.h.filter(x=>x.ex===r.ex&&x.modo===r.modo);const melhor=ant.reduce((a,x)=>Math.max(a,x.acerto),-1);
+  d.h.unshift({...r,em:Date.now()});d.h=d.h.slice(0,200);gravar(d);return ant.length>0&&r.acerto>melhor}
+function dia(ts){const d=new Date(ts);return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
+function desenharProgresso(){const d=ler();
+  const dias=new Set(d.h.map(x=>dia(x.em)));let n=0;for(let k=0;;k++){const t=Date.now()-k*864e5;if(dias.has(dia(t)))n++;else if(k>0)break;else continue}
+  $('serie').innerHTML=d.h.length?`Você treinou <b>${n}</b> ${n===1?'dia seguido':'dias seguidos'} e fez <b>${d.h.length}</b> ${d.h.length===1?'treino':'treinos'} no total.`:'Ainda não há treinos. Faça um exercício na aba Confere e o resultado aparece aqui.';
+  $('recBody').innerHTML=EX.map(x=>{const hs=d.h.filter(h=>h.ex===x.id);if(!hs.length)return `<tr><td>${x.nome}</td><td class="n">–</td><td class="n">–</td></tr>`;
+    const ac=Math.max(...hs.map(h=>h.acerto));const bp=hs.filter(h=>h.bpmOk).map(h=>h.bpmOk);return `<tr><td>${x.nome}</td><td class="n">${ac}%</td><td class="n">${bp.length?Math.max(...bp)+' bpm':'–'}</td></tr>`}).join('');
+  const nomeEx=id=>(EX.find(x=>x.id===id)||{nome:id}).nome;
+  $('histBody').innerHTML=d.h.slice(0,12).map(h=>`<tr><td>${new Date(h.em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} ${new Date(h.em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</td><td>${nomeEx(h.ex)}</td><td>${h.modo==='livre'?'no meu tempo':h.bpm+' bpm'}</td><td class="n">${h.acerto}%</td></tr>`).join('')||'<tr><td colspan="4" class="vazio">Nenhum treino ainda.</td></tr>'}
+desenharProgresso();
+function pedirLimpar(){const box=$('limparBox');box.innerHTML='<span>Apagar todo o histórico deste aparelho?</span><button class="btn" id="limparSim">Sim, apagar</button><button class="btn" id="limparNao">Cancelar</button>';
+  $('limparSim').addEventListener('click',()=>{gravar({h:[]});desenharProgresso();box.innerHTML='<span>Histórico apagado.</span>'});
+  $('limparNao').addEventListener('click',()=>{box.innerHTML='<button class="btn" id="limpar">Apagar meu histórico</button>';$('limpar').addEventListener('click',pedirLimpar)})}
+$('limpar').addEventListener('click',pedirLimpar);
+
+/* ---------- abas ---------- */
+const tabs=[...document.querySelectorAll('[role=tab]')];
+tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>{const on=x===t;x.setAttribute('aria-selected',on);$(x.getAttribute('aria-controls')).hidden=!on});
+  if(t.id!=='t-confere'&&sess)parar(false);if(t.id==='t-progresso')desenharProgresso()}));
+})();
+</script>
+</body>
+</html>
