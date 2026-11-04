@@ -103,6 +103,41 @@ footer a{color:inherit}
 .aula{display:grid;gap:12px;padding:16px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
 .legenda{font-size:18px;font-weight:500;line-height:1.45;min-height:2.9em;max-width:62ch;text-wrap:pretty}
 .field.inline{display:flex;align-items:center;gap:8px}
+.janelas{display:none}
+.legmob{display:none}
+@media (max-width: 720px){
+  .wrap{gap:12px;padding-block:12px 24px}
+  .eyebrow,.lede,.hint,.keys{display:none}
+  header{flex-wrap:nowrap;align-items:center;gap:10px}
+  h1{font-size:22px;letter-spacing:-.01em}
+  .readout{min-width:0;padding:6px 10px;gap:0;justify-items:end;text-align:right}
+  .readout small{display:none}
+  .readout b{font-size:18px}
+  .readout span{font-size:11px}
+  .stage{position:relative;overflow:hidden;border-radius:14px}
+  .stage svg{min-width:0;touch-action:pan-y}
+  .hintrow{margin-top:0}
+  .janelas{display:flex;gap:6px;margin-top:-4px}
+  .janelas .btn{flex:1;padding:9px 0;font-size:13px}
+  .legmob:not([hidden]){display:block;position:absolute;left:8px;right:8px;top:8px;margin:0;padding:10px 12px;border-radius:10px;
+    background:rgba(20,12,7,.86);color:#F6EBDD;font-size:15px;line-height:1.4;font-weight:500}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:6px}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{flex:none;padding:10px 12px;font-size:14px}
+  .panel{padding:14px;gap:14px}
+  .chords{display:flex;overflow-x:auto;gap:8px;padding-bottom:4px;scrollbar-width:thin}
+  .chords .btn{flex:none;min-width:58px;min-height:48px;font-size:17px}
+  .excs{display:flex;overflow-x:auto;gap:8px;padding-bottom:4px}
+  .exc{flex:none;width:72vw;max-width:280px}
+  .acao{position:sticky;bottom:0;z-index:5;background:var(--surface);margin-inline:-14px;padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top:1px solid var(--line);box-shadow:0 -8px 18px -12px rgba(0,0,0,.35)}
+  .acao .btn.primary{flex:1 1 auto;min-height:48px;font-size:16px}
+  .aula{padding:12px}
+  .legenda{font-size:16px}
+  .bpm input{width:min(150px,38vw)}
+  .pattern{grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+  .slot b{font-size:17px}
+}
 </style>
 </head>
 <body>
@@ -120,7 +155,7 @@ footer a{color:inherit}
     </div>
   </header>
 
-  <div class="stage">
+  <div class="stage" id="stage">
     <svg id="neck" viewBox="0 0 1300 300" role="img" aria-label="Braço da guitarra, da pestana até a casa 12, com os captadores à direita"></svg>
   </div>
   <div class="hintrow">
@@ -457,7 +492,7 @@ const LARG=[0,23,24,22,18];
 function dedoPath(px,py,d,cx){const bx=cx+(d-2.4)*30,by=-28;const kx=(bx+px)/2+(d-2.5)*4,ky=Math.min(py,20)-6;return `M${bx},${by} Q${kx},${ky} ${px},${py}`}
 function desenharDedo(g,px,py,d,cx,barreAte){
   const w=LARG[d];const path=barreAte?`M${cx+(1-2.4)*30},${-28} Q${px-4},${20} ${px},${py} L${px},${barreAte}`:dedoPath(px,py,d,cx);
-  el('path',{d:path,fill:'none',stroke:'#000','stroke-opacity':.35,'stroke-width':w+4,'stroke-linecap':'round',transform:'translate(3,5)',filter:'url(#sb)'},g);
+  el('path',{d:path,fill:'none',stroke:'#000','stroke-opacity':.22,'stroke-width':w+5,'stroke-linecap':'round',transform:'translate(3,5)'},g);
   el('path',{d:path,fill:'none',stroke:'#8E5536','stroke-width':w+3,'stroke-linecap':'round'},g);
   el('path',{d:path,fill:'none',stroke:'#D49A75','stroke-width':w,'stroke-linecap':'round'},g);
   el('path',{d:path,fill:'none',stroke:'#F0C6A6','stroke-width':w*.42,'stroke-linecap':'round',transform:'translate(-3,-1)','stroke-opacity':.9},g);
@@ -647,6 +682,64 @@ document.getElementById('nPlay').addEventListener('click',()=>{if(seq){stopSeq()
 nLoop.addEventListener('change',()=>{if(seq){stopSeq();startNumb()}});
 
 readout(5,0);
+/* ---------- celular: braço na vertical, toque e deslize ---------- */
+(()=>{
+const MQ=matchMedia('(max-width: 720px)');
+const root=el('g',{id:'root'});while(svg.firstChild)root.appendChild(svg.firstChild);svg.appendChild(root);
+toSvg=e=>{const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;return pt.matrixTransform(root.getScreenCTM().inverse())};
+let vert=false,win={a:1,b:4},cur=null,anim=null;
+const yTop=CY-halfW(fretX(12))-16,yBot=CY+halfW(fretX(12))+36;
+function upright(node){const ts=node.tagName==='text'?[node]:node.querySelectorAll?[...node.querySelectorAll('text')]:[];
+  ts.forEach(t=>{if(!t.hasAttribute('data-tf'))t.setAttribute('data-tf',t.getAttribute('transform')||'');const base=t.getAttribute('data-tf');
+    t.setAttribute('transform',vert?`${base} rotate(-90 ${t.getAttribute('x')} ${t.getAttribute('y')})`.trim():base)})}
+new MutationObserver(ms=>{if(!vert)return;ms.forEach(m=>m.addedNodes.forEach(n=>n.nodeType===1&&upright(n)))}).observe(root,{childList:true,subtree:true});
+function target(){const a=win.a<=1?NUT-48:fretX(win.a-1)-18;const b=fretX(win.b)+18;return [VH-yBot,a,yBot-yTop,b-a]}
+function setVB(v){svg.setAttribute('viewBox',v.map(n=>n.toFixed(1)).join(' '))}
+function go(){const t=target();if(!cur||reduce){cur=t;setVB(t);return}const from=cur.slice(),t0=performance.now();cancelAnimationFrame(anim);
+  const step=now=>{const k=Math.min(1,(now-t0)/380),e=1-Math.pow(1-k,3);cur=from.map((v,i)=>v+(t[i]-v)*e);setVB(cur);if(k<1)anim=requestAnimationFrame(step)};anim=requestAnimationFrame(step)}
+function fit(a,b){a=Math.max(1,Math.min(a,8));b=Math.min(12,Math.max(b,a+3));if(a===win.a&&b===win.b)return;win={a,b};if(vert){go();marcarJanela()}}
+function apply(){vert=MQ.matches;
+  if(vert){root.setAttribute('transform',`translate(${VH},0) rotate(90)`);cur=null;go()}
+  else{root.removeAttribute('transform');svg.setAttribute('viewBox',`0 0 ${VW} ${VH}`)}
+  upright(root);document.body.classList.toggle('vert',vert)}
+/* janelas de casas no celular */
+const bar=document.createElement('div');bar.className='janelas';bar.setAttribute('role','group');bar.setAttribute('aria-label','Casas visíveis');
+[[1,4,'Casas 1–4'],[4,8,'5–8'],[8,12,'9–12']].forEach(([a,b,t])=>{const x=document.createElement('button');x.className='btn';x.textContent=t;x.dataset.a=a;x.dataset.b=b;
+  x.addEventListener('click',()=>{win={a:-1,b:-1};fit(a,b)});bar.appendChild(x)});
+document.getElementById('stage').after(bar);
+function marcarJanela(){[...bar.children].forEach(x=>x.setAttribute('aria-pressed',+x.dataset.a<=win.a+1&&+x.dataset.b>=win.b-1))}
+/* o braço acompanha acorde e exercício */
+const _sc=showChord;showChord=n=>{_sc(n);if(n&&CH[n]){const fs=CH[n].f.filter(v=>v>0);if(fs.length)fit(Math.min(...fs)<=2?1:Math.min(...fs)-1,Math.max(4,Math.max(...fs)))}};
+const _ff=flashFinger;flashFinger=(s,f,d)=>{_ff(s,f,d);if(f>0&&(f>win.b||f<win.a))fit(f-1,f+3)};
+/* legenda sobre o braço durante a aula */
+const stage=document.getElementById('stage');const leg=document.createElement('p');leg.className='legmob';leg.hidden=true;leg.setAttribute('aria-hidden','true');stage.appendChild(leg);
+if(typeof falar==='function'){const _fa=falar;falar=(t,id)=>{if(vert){leg.textContent=t;leg.hidden=false;clearTimeout(leg._t);leg._t=setTimeout(()=>leg.hidden=true,9000)}return _fa(t,id)}}
+const ab=document.getElementById('cAula');if(ab)ab.addEventListener('click',()=>{if(vert)stage.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'})});
+/* toque: tocar a casa; deslizar de lado: rasquear */
+let tp=null;
+svg.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;e.stopImmediatePropagation();audio();const L=locate(toSvg(e));
+  tp={id:e.pointerId,x:e.clientX,y:e.clientY,L,lastU:L.u,moving:false,hit:false,t:performance.now()}},{capture:true});
+svg.addEventListener('pointermove',e=>{if(!tp||e.pointerId!==tp.id)return;e.stopImmediatePropagation();
+  const across=vert?Math.abs(e.clientX-tp.x):Math.abs(e.clientY-tp.y);
+  if(!tp.moving){if(across<9)return;tp.moving=true;try{svg.setPointerCapture(e.pointerId)}catch(_){}}
+  const L=locate(toSvg(e));const lo=Math.min(tp.lastU,L.u),hi=Math.max(tp.lastU,L.u),down=L.u>tp.lastU;const fr=chordFrets();
+  const crossed=[0,1,2,3,4,5].filter(s=>down?(s>lo&&s<=hi):(s>=lo&&s<hi));if(!down)crossed.reverse();
+  const dt=Math.max(8,performance.now()-tp.t);const v=Math.min(1.15,.55+(hi-lo)*40/dt);
+  for(const s of crossed){if(fr[s]!==null&&fr[s]!==undefined){play(s,fr[s],0,v);tp.hit=true}}
+  tp.lastU=L.u;tp.t=performance.now()},{capture:true});
+svg.addEventListener('pointerup',e=>{if(!tp||e.pointerId!==tp.id)return;e.stopImmediatePropagation();const L=tp.L;
+  if(!tp.moving){if(L.fret==='body')strum('down',chordFrets(),0);else if(L.u>-.7&&L.u<5.7){stopSeq();play(L.s,L.fret,0,1);if(L.fret>0&&!state.chord)flashFinger(L.s,L.fret,'')}}
+  tp=null},{capture:true});
+svg.addEventListener('pointercancel',e=>{if(tp&&e.pointerId===tp.id){e.stopImmediatePropagation();tp=null}},{capture:true});
+/* botões principais grudados embaixo no celular */
+document.querySelectorAll('.transport').forEach(n=>n.classList.add('acao'));
+['tune','cAula'].forEach(id=>{const r=document.getElementById(id);if(r)r.closest('.row').classList.add('acao')});
+/* textos curtos para tela de toque */
+if(matchMedia('(pointer: coarse)').matches){const p=document.querySelector('#p-livre > p');if(p)p.textContent='Toque numa casa para ouvir a nota. Deslize o dedo de lado, por cima das cordas, para rasquear.'}
+MQ.addEventListener('change',apply);apply();
+if(MQ.matches){const t=document.getElementById('t-acordes')||document.getElementById('t-power');if(t)t.click()}
+})();
+
 })();
 </script>
 </body>
